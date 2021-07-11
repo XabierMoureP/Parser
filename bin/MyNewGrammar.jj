@@ -1,0 +1,235 @@
+options
+{
+  JDK_VERSION = "1.5";
+  static = true;
+  IGNORE_CASE = false;
+  DEBUG_TOKEN_MANAGER = false;
+  DEBUG_PARSER = true;
+  GRAMMAR_ENCODING = "UTF-8"; // (default file.encoding)
+  LOOKAHEAD = 1;
+}
+
+
+PARSER_BEGIN(XML_parser)
+
+	import java.io.*;
+	import java.util.*;
+
+	public class XML_parser {
+
+    	public static void main(String[] args) throws ParseException,
+     						FileNotFoundException
+       {
+        	if ( args.length < 1 ) {
+           	System.out.println("Please pass in the filename for a parameter.");
+           	System.exit(1);
+        }
+
+        XML_parser parser = new XML_parser( new FileInputStream(args[0]) );
+
+        parser.Input();
+        System.out.println("Parse completed.");
+       }
+     }
+PARSER_END(XML_parser)
+
+TOKEN_MGR_DECLS : {
+
+static int commentNesting = 0;
+
+
+//Codigo necesario para extraer todos los tokens del fichero
+public static void main(String args [])  
+{
+    FileInputStream myfile = null;
+    XML_lexer lexer=null;
+    int option=0;
+    try {
+      InputStreamReader isr = new InputStreamReader(System.in);
+      BufferedReader bf = new BufferedReader(isr);
+      System.out.println("Configuracion de codigo fuente a analizar");
+      System.out.println("\t[1] Lectura por teclado");
+      System.out.println("\t[2] Lectura desde fichero");
+      
+      option = Integer.parseInt(bf.readLine());
+      if (option == 1)
+      {
+        System.out.println("Configurada lectura por teclado. Introduce el codigo fuente");
+        lexer = new XML_lexer( System.in ) ;
+      }
+      else if (option == 2)
+      {
+        System.out.println("Introduce el nombre del fichero fuente");
+        myfile = new FileInputStream(bf.readLine());
+        lexer = new XML_lexer ( myfile ) ;
+      }
+    } catch (Exception e1) {
+      // TODO Auto-generated catch block
+      e1.printStackTrace();
+    }
+
+    while (true)
+    {
+      try
+      {
+        Token myToken=lexer.getNextToken();
+        if (myToken.kind==lexer.EOF)
+        {
+          System.out.println("Leido final del fichero");
+          System.exit(0);
+        }
+        System.out.println("Leido lexema: " + myToken.image + "\t-->Token:  " + lexer.tokenImage[myToken.kind]);
+      } catch (TokenMgrError e) {
+        System.out.println(e.getMessage());
+        if (option == 1) lexer.ReInit(System.in);
+        else if (option==2) lexer.getNextToken();
+      }
+    }
+  }
+
+}
+
+
+SKIP:
+{
+  < SINGLE_LINE_COMMENT: "//"(~["\n", "\r"])*("\n" | "\r" | "\r\n") >
+| < ("\n" | "\r" | "\t" | " ") >
+}
+
+SPECIAL_TOKEN:
+{
+	"<!--" { commentNesting++; }: IN_COMMENT
+}
+
+<IN_COMMENT> SKIP :
+{
+	"<!--" { commentNesting++; }
+| "-->" { commentNesting--;
+			if (commentNesting == 0)
+				SwitchTo(DEFAULT);
+		}
+| <~[]>
+}
+
+
+TOKEN:
+{ 
+  //CABECERA
+  < LBLCABECERA: ("<#xml+ " < VERSION > " " < ENCODING > " #>") >
+| < VERSION : ("version="< NUMEROV >) >
+| < NUMEROV : "\"0.5\"" | "\"1.0\"" | "\"2.0\""  >
+| < ENCODING: ("encoding="< TIPO >)>
+| < TIPO: "\"UTF-8\"" | "\"ISO-8859-1\"">
+  //DOCTYPE
+| < DOC: ("<!DOCTYPE " < ARCHIVO > ">" (< HELPER_CONTENIDO >)*) >
+| < ARCHIVO: "\""((["A"-"Z"])*|(["a"-"z"])*|("_")*)* ".dtd\"" >
+
+//APERTURA ETIQUETAS
+| < IETQ_ASIGNATURAS: "<Asignaturas>" >
+| < IETQ_NUEVA_ASIGNATURA: "<"(["A"-"Z"])+">" >
+| < IETQ_PROFESOR: "<Profesor>" >
+| < IETQ_ALUMNOS: "<Alumnos>" >
+| < IETQ_ALUMNO: "<Alumno>" >
+| < IETQ_NOMBRE: "<Nombre>" >
+| < IETQ_MAIL: "<Mail>" >
+| < IETQ_RESUMEN: "<Resumen>" >
+
+//CIERRE ETIQUETAS
+| < FETQ_ASIGNATURAS: "</Asignaturas>" >
+| < FETQ_NUEVA_ASIGNATURA: "</"(["A"-"Z"])+">" >
+| < FETQ_PROFESOR: "</Profesor>" >
+| < FETQ_ALUMNOS: "</Alumnos>" >
+| < FETQ_ALUMNO: "</Alumno>" >
+| < FETQ_NOMBRE: "</Nombre>" >
+| < FETQ_MAIL: "</Mail>" >
+| < FETQ_RESUMEN: "</Resumen>" >
+
+//OTROS
+| < CONTENIDO: (< HELPER_CONTENIDO >)* >
+| < HELPER_CONTENIDO: ((["A"-"Z"])*|(["a"-"z"])*|(" ")*|(["0"-"9"])*) >
+| < MAIL_STRUCTURE: (((["a"-"z"])*|(["0"-"9"])*)* "@" (["a"-"z"])+ "." (["a"-"z"])+) >
+| < MAIL_SINGLE_LINE: "<Mail:'" < MAIL_STRUCTURE > "'/>" >
+| < NOMBRE_SINGLE_LINE: "<Nombre:'" < CONTENIDO > "'/>" >
+}
+
+//Gramatica implementada:
+//<fichero_xml> ::= <encabezado> <cuerpo>
+//<encabezado> ::= <version> <doctype>
+//<cuerpo> ::= <inicio_bloque_asignaturas > {<asignatura>} <fin_bloque_asignaturas>
+//<asignatura> ::= <inicio_asignatura> <profesor> <bloque_alumnos> <resumen>? <fin_asignatura>
+//<profesor> ::= <inicio_profesor> <nombre_profesor> <mail_profesor> <fin_profesor>
+//<bloque_alumnos> ::= <inicio_bloque_alumnos> {<alumno>} <fin_bloque_alumnos>
+//<alumno> ::= <inicio_alumno> <nombre_alumno> <mail_alumno> <fin_alumno>
+//<resumen> ::= <inicio_resumen> <texto_resumen> <fin_resumen>
+
+void Input():
+{}
+{
+  encabezado() cuerpo() < EOF >  	
+}
+
+void encabezado():
+{}
+{
+ < LBLCABECERA > < DOC >
+}
+
+void cuerpo():
+{}
+{
+  < IETQ_ASIGNATURAS > (asignatura())* < FETQ_ASIGNATURAS >
+}
+
+void asignatura():
+{}
+{
+  < IETQ_NUEVA_ASIGNATURA > profesor() bloque_alumnos() (resumen())? < FETQ_NUEVA_ASIGNATURA >
+}
+
+void profesor():
+{}
+{
+  < IETQ_PROFESOR > nombre_profesor() mail_profesor() < FETQ_PROFESOR >
+}
+
+void nombre_profesor():
+{}
+{
+  < IETQ_NOMBRE > < CONTENIDO > <FETQ_NOMBRE > | < NOMBRE_SINGLE_LINE > 
+}
+
+void mail_profesor():
+{}
+{
+  < IETQ_MAIL > < MAIL_STRUCTURE > <FETQ_MAIL > | < MAIL_SINGLE_LINE >
+}
+
+void bloque_alumnos():
+{}
+{
+  < IETQ_ALUMNOS > (alumno())* < FETQ_ALUMNOS >
+}
+
+void alumno():
+{}
+{
+  < IETQ_ALUMNO > nombre_alumno() mail_alumno() < FETQ_ALUMNO >
+}
+
+void nombre_alumno():
+{}
+{
+  < IETQ_NOMBRE > < CONTENIDO > <FETQ_NOMBRE > | < NOMBRE_SINGLE_LINE > 
+}
+
+void mail_alumno():
+{}
+{
+  < IETQ_MAIL > < MAIL_STRUCTURE > <FETQ_MAIL > | < MAIL_SINGLE_LINE >
+}
+
+void resumen():
+{}
+{
+  < IETQ_RESUMEN > < CONTENIDO > < FETQ_RESUMEN >
+}
